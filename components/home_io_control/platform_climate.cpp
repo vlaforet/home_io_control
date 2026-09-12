@@ -72,6 +72,15 @@ void IOHomeClimate::setup() {
   // "Program" is a custom preset (registered on the entity, referenced by the traits) because IO's
   // prog mode has no ClimateMode equivalent.
   this->set_supported_custom_presets({PROGRAM_PRESET_NAME});
+
+  auto restore = this->restore_state_();
+
+  if (restore.has_value()) {
+    restore->apply(this);
+  } else {
+    this->mode = climate::CLIMATE_MODE_OFF;
+    this->target_temperature = 20.0F;
+  }
 }
 
 climate::ClimateTraits IOHomeClimate::traits() {
