@@ -609,7 +609,71 @@ bool PairingEngine::discover_and_pair() {
 
   ESP_LOGI(TAG, "Pulled System Key: %s", key_hex);
 
-  ESP_LOGI(TAG, "KEY PULL + DECRYPT TEST COMPLETE");
+  IoFrame pulled_key_frame = context.resp;
+
+  uint8_t auth_challenge[HMAC_SIZE];
+  crypto::generate_challenge(auth_challenge);
+
+  ESP_LOGI(TAG, "Testing pulled System Key with 0x3C challenge");
+
+  if (!create_challenge_req(
+          context.req,
+          context.device.node_id,
+          node_id_,
+          auth_challenge)) {
+    ESP_LOGW(TAG, "Failed to build 0x3C challenge");
+    return false;
+  }
+
+  auto auth_outcome =
+      engine_.send_and_receive(context.req, context.resp, FREQ_CH2);
+
+  if (auth_outcome != ExchangeOutcome::SUCCESS_WITH_RESPONSE) {
+    ESP_LOGW(TAG, "No response to 0x3C challenge");
+    return false;
+  }
+
+  ESP_LOGI(TAG,
+          "Challenge response: cmd=0x%02X data_len=%u",
+          context.resp.cmd,
+          context.resp.data_len);
+
+  if (context.resp.cmd != CMD_CHALLENGE_RESP) {
+    ESP_LOGW(TAG,
+            "Expected 0x3D, got 0x%02X",
+            context.resp.cmd);
+    return false;
+  }
+
+  if (context.resp.data_len != HMAC_SIZE) {
+    ESP_LOGW(TAG,
+            "Unexpected 0x3D payload length: %u",
+            context.resp.data_len);
+    return false;
+  }
+
+  uint8_t auth_data[1 + AES_KEY_SIZE];
+
+  auth_data[0] = pulled_key_frame.cmd;
+  memcpy(&auth_data[1],
+        pulled_key_frame.data,
+        pulled_key_frame.data_len);
+
+  bool key_valid = crypto::verify_hmac(
+      auth_data,
+      1 + pulled_key_frame.data_len,
+      context.resp.data,
+      auth_challenge,
+      pulled_system_key);
+
+  if (!key_valid) {
+    ESP_LOGW(TAG, "Pulled System Key authentication FAILED");
+    return false;
+  }
+
+  ESP_LOGI(TAG, "Pulled System Key authentication SUCCESS");
+  ESP_LOGI(TAG, "KEY PULL FULL TEST COMPLETE");
+
   return false;
 
   // Phase 2: Key exchange — retry up to the configured number of times.
