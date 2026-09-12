@@ -55,6 +55,7 @@ enum class DeviceType : uint8_t {
   HEAT_PUMP = 0x16,          ///< Heat pump.
   INTRUSION_ALARM = 0x17,    ///< Intrusion alarm.
   SWINGING_SHUTTER = 0x18,   ///< Swinging shutter.
+  ELECTRICAL_HEATER = 0x34,  ///< Atlantic/Thermor electrical heater.
 };
 
 /// @brief High‑level capability class derived from DeviceType.

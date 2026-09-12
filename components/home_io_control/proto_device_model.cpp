@@ -34,6 +34,8 @@ const char *pairing_platform_name(DeviceCapabilityClass capability_class) {
       return "switch";
     case DeviceCapabilityClass::LOCK:
       return "lock";
+    case DeviceCapabilityClass::CLIMATE:
+      return "climate";
     default:
       return nullptr;
   }
@@ -162,6 +164,8 @@ const char *device_type_name(DeviceType type) {
       return "heat_pump";
     case DeviceType::INTRUSION_ALARM:
       return "intrusion_alarm";
+    case DeviceType::ELECTRICAL_HEATER:
+      return "electrical_heater";
   }
 
   return "unknown";
@@ -211,6 +215,8 @@ const char *yaml_device_type_name(DeviceType type) {
       return "intrusion_alarm";
     case DeviceType::SWINGING_SHUTTER:
       return "swinging_shutter";
+    case DeviceType::ELECTRICAL_HEATER:
+      return "electrical_heater";
     // Not YAML-selectable (nullptr, so callers fall back to a raw numeric value). Listed
     // explicitly instead of default: so -Wswitch flags any new DeviceType that skips this switch.
     case DeviceType::BEACON:
@@ -252,6 +258,7 @@ DeviceCapabilityClass device_capability_class(DeviceType type) {
     case DeviceType::HEATING_TEMPERATURE_INTERFACE:
     case DeviceType::EXTERIOR_HEATING:
     case DeviceType::HEAT_PUMP:
+    case DeviceType::ELECTRICAL_HEATER:
       return DeviceCapabilityClass::CLIMATE;
     case DeviceType::VENTILATION_POINT:
       // Binary ventilation on/off; treated as switch
@@ -345,6 +352,7 @@ bool device_supports_tilt(DeviceType type) {
     case DeviceType::HEAT_PUMP:
     case DeviceType::INTRUSION_ALARM:
     case DeviceType::SWINGING_SHUTTER:
+    case DeviceType::ELECTRICAL_HEATER:
       return false;
   }
   return false;
@@ -380,6 +388,7 @@ bool device_supports_vent(DeviceType type) {
     case DeviceType::HEAT_PUMP:
     case DeviceType::INTRUSION_ALARM:
     case DeviceType::SWINGING_SHUTTER:
+    case DeviceType::ELECTRICAL_HEATER:
       return false;
   }
   return false;
