@@ -602,6 +602,13 @@ bool create_discover_resp(IoFrame &f, const uint8_t *own, const uint8_t *dst, De
 /// @return true on success.
 bool create_key_confirm(IoFrame &f, const uint8_t *own, const uint8_t *dst);
 
+bool create_discover_confirm(IoFrame &f, const uint8_t *own, const uint8_t *dst);
+
+bool create_launch_key_transfer(IoFrame &f,
+                                const uint8_t *own,
+                                const uint8_t *dst,
+                                const uint8_t challenge[HMAC_SIZE]);
+
 /// @brief Build a discovery-confirm acknowledgement (0x2D) — the device's answer to a hub's
 /// CMD_DISCOVER_CONFIRM (0x2C), which a hub sends directly to a freshly-discovered device before
 /// it will proceed to the key exchange.

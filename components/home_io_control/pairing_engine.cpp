@@ -17,6 +17,7 @@
 #include "tuning_config.h"
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
+#include "proto_crypto.h"
 
 #include <cinttypes>
 #include <cstring>
@@ -502,6 +503,88 @@ bool PairingEngine::discover_and_pair() {
                                       : PairingOutcome::NO_RESPONSE);
     return false;
   }
+
+  ESP_LOGI(TAG, "Sending discovery confirmation (0x2C) to %02X%02X%02X",
+          context.device.node_id[0],
+          context.device.node_id[1],
+          context.device.node_id[2]);
+
+  if (!create_discover_confirm(context.req, node_id_, context.device.node_id)) {
+    ESP_LOGW(TAG, "Failed to build discovery confirmation");
+    return false;
+  }
+
+  auto confirm_outcome =
+      engine_.send_and_receive(context.req, context.resp, FREQ_CH2);
+
+  if (confirm_outcome != ExchangeOutcome::SUCCESS_WITH_RESPONSE) {
+    ESP_LOGW(TAG, "No response to discovery confirmation (0x2C)");
+    return false;
+  }
+
+  ESP_LOGI(TAG, "Discovery confirmation response: cmd=0x%02X", context.resp.cmd);
+
+  if (context.resp.cmd != CMD_DISCOVER_CONFIRM_ACK) {
+    ESP_LOGW(TAG,
+            "Unexpected response to 0x2C: cmd=0x%02X (expected 0x2D)",
+            context.resp.cmd);
+    return false;
+  }
+
+  ESP_LOGI(TAG, "Discovery confirmation accepted (0x2D)");
+
+  uint8_t pull_challenge[HMAC_SIZE];
+  crypto::generate_challenge(pull_challenge);
+
+  ESP_LOGI(TAG, "Starting key pull with CMD 0x38");
+
+  if (!create_launch_key_transfer(context.req,
+                                  node_id_,
+                                  context.device.node_id,
+                                  pull_challenge)) {
+    ESP_LOGW(TAG, "Failed to build 0x38 Launch Key Transfer");
+    return false;
+  }
+
+  auto pull_outcome =
+      engine_.send_and_receive(context.req, context.resp, FREQ_CH2);
+
+  if (pull_outcome != ExchangeOutcome::SUCCESS_WITH_RESPONSE) {
+    ESP_LOGW(TAG, "No response to 0x38");
+    return false;
+  }
+
+  ESP_LOGI(TAG,
+          "0x38 response: cmd=0x%02X data_len=%u",
+          context.resp.cmd,
+          context.resp.data_len);
+
+  if (context.resp.cmd != CMD_KEY_TRANSFER) {
+    ESP_LOGW(TAG,
+            "Expected 0x32 after 0x38, got 0x%02X",
+            context.resp.cmd);
+    return false;
+  }
+
+  if (context.resp.data_len != AES_KEY_SIZE) {
+    ESP_LOGW(TAG,
+            "Unexpected 0x32 payload length: %u",
+            context.resp.data_len);
+    return false;
+  }
+
+  ESP_LOGI(TAG, "Received encrypted device key via 0x32");
+
+  char encrypted_key_hex[AES_KEY_SIZE * 2 + 1];
+  for (size_t i = 0; i < AES_KEY_SIZE; i++) {
+    snprintf(&encrypted_key_hex[i * 2], 3, "%02X", context.resp.data[i]);
+  }
+  encrypted_key_hex[AES_KEY_SIZE * 2] = '\0';
+
+  ESP_LOGI(TAG, "Encrypted device key: %s", encrypted_key_hex);
+
+  ESP_LOGI(TAG, "KEY PULL TEST COMPLETE");
+  return false;
 
   // Phase 2: Key exchange — retry up to the configured number of times.
   bool key_exchanged = false;

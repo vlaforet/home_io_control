@@ -13,6 +13,29 @@
 namespace esphome {
 namespace home_io_control {
 
+bool create_discover_confirm(IoFrame &f, const uint8_t *own, const uint8_t *dst) {
+  // Controller -> freshly discovered device.
+  // Real pairing captures use:
+  //   start=true, end=false, low_power=true
+  init_frame(f, true, true, false, true);
+  set_dst(f, dst);
+  set_src(f, own);
+  return set_cmd(f, CMD_DISCOVER_CONFIRM);
+}
+
+bool create_launch_key_transfer(IoFrame &f,
+                                const uint8_t *own,
+                                const uint8_t *dst,
+                                const uint8_t challenge[HMAC_SIZE]) {
+  // 0x38: Launch Key Transfer
+  // start=true, end=false
+  init_frame(f, true, true, false, false);
+  set_dst(f, dst);
+  set_src(f, own);
+
+  return set_cmd(f, CMD_LAUNCH_KEY_TRANSFER, challenge, HMAC_SIZE);
+}
+
 namespace {
 
 // === Command payload templates ===
