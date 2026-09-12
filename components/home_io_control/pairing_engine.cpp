@@ -584,6 +584,32 @@ bool PairingEngine::discover_and_pair() {
   ESP_LOGI(TAG, "Encrypted device key: %s", encrypted_key_hex);
 
   ESP_LOGI(TAG, "KEY PULL TEST COMPLETE");
+
+  uint8_t pull_data[1 + HMAC_SIZE];
+  pull_data[0] = CMD_LAUNCH_KEY_TRANSFER;
+  memcpy(&pull_data[1], pull_challenge, HMAC_SIZE);
+
+  uint8_t pulled_system_key[AES_KEY_SIZE];
+
+  if (!crypto::crypt_key(
+          pull_data,
+          sizeof(pull_data),
+          pull_challenge,
+          context.resp.data,
+          pulled_system_key)) {
+    ESP_LOGW(TAG, "Failed to decrypt pulled system key");
+    return false;
+  }
+
+  char key_hex[AES_KEY_SIZE * 2 + 1];
+  for (size_t i = 0; i < AES_KEY_SIZE; i++) {
+    snprintf(&key_hex[i * 2], 3, "%02X", pulled_system_key[i]);
+  }
+  key_hex[AES_KEY_SIZE * 2] = '\0';
+
+  ESP_LOGI(TAG, "Pulled System Key: %s", key_hex);
+
+  ESP_LOGI(TAG, "KEY PULL + DECRYPT TEST COMPLETE");
   return false;
 
   // Phase 2: Key exchange — retry up to the configured number of times.
